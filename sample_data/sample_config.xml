@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DEFTABLE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="Folder.xsd">
+
+    <FOLDER DATACENTER="prod_datacenter_emea" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="FIN-PROD-GL-ETL-DATAMART-001" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1" SITE_STANDARD_NAME="standard-keep-active">
+        <JOB APPLICATION="FIN-PROD-GL" SUB_APPLICATION="FIN-PROD-GL-ETL" JOBNAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Load_Chart_Accounts" DESCRIPTION="Loads daily chart of accounts updates" RUN_AS="svc_acct_finance_dw" TASKTYPE="Job" NODEID="lnxappprod01" CRITICAL="1">
+            <VARIABLE NAME="%%GL_SOURCE_SYSTEM" VALUE="SAP_FIN"/>
+            <VARIABLE NAME="%%LOAD_TYPE" VALUE="INCREMENTAL"/>
+            <QUANTITATIVE NAME="SAP_CONNECTION_RESOURCE" QUANT="1" ONOK="R" ONFAIL="R"/>
+            <QUANTITATIVE NAME="DW_LOAD_SLOT" QUANT="5" ONOK="R" ONFAIL="R"/>
+            <OUTCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Load_Chart_Accounts-OK" ODATE="ODAT" SIGN="+"/>
+            <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="finance-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID. Check logs."/>
+                 <DOSHOUT URGENCY="R" MESSAGE="Job %%JOBNAME Failed" DEST="AppSupportTeam"/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="FIN-PROD-GL" SUB_APPLICATION="FIN-PROD-GL-ETL" JOBNAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Process_GL_Transactions_Daily" DESCRIPTION="Processes daily GL transaction files" RUN_AS="svc_acct_finance_dw" TASKTYPE="Job" NODEID="lnxappprod01">
+            <VARIABLE NAME="%%TRANSACTION_DATE" VALUE="%%$DATE"/>
+            <INCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Load_Chart_Accounts-OK" ODATE="ODAT" AND_OR="A"/>
+            <QUANTITATIVE NAME="DW_LOAD_SLOT" QUANT="10" ONOK="R" ONFAIL="R"/>
+            <OUTCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Process_GL_Transactions_Daily-OK" ODATE="ODAT" SIGN="+"/>
+            <OUTCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Load_Chart_Accounts-OK" ODATE="ODAT" SIGN="-"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="finance-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID. Check logs."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="FIN-PROD-GL" SUB_APPLICATION="FIN-PROD-GL-ETL" JOBNAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Aggregate_GL_Summary_EOD" DESCRIPTION="Aggregates GL data for end-of-day summary" RUN_AS="svc_acct_finance_dw" TASKTYPE="Job" NODEID="lnxappprod02">
+             <INCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Process_GL_Transactions_Daily-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_AGG_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Process_GL_Transactions_Daily-OK" ODATE="ODAT" SIGN="-"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="finance-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID. Check logs."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="FIN-PROD-GL" SUB_APPLICATION="FIN-PROD-GL-UTIL" JOBNAME="FIN-PROD-GL-ETL-DATAMART-001-CMD-Archive_Logs" DESCRIPTION="Archives job logs" RUN_AS="svc_acct_ops_util" TASKTYPE="Command" NODEID="lnxutilprod01" CMDLINE="/opt/scripts/archive_logs.sh --app=FIN-PROD-GL --folder=FIN-PROD-GL-ETL-DATAMART-001">
+            <INCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Aggregate_GL_Summary_EOD-OK" ODATE="ODAT" AND_OR="A"/>
+            <OUTCOND NAME="FIN-PROD-GL-ETL-DATAMART-001-DW-Aggregate_GL_Summary_EOD-OK" ODATE="ODAT" SIGN="-"/>
+        </JOB>
+    </FOLDER>
+
+    <FOLDER DATACENTER="prod_datacenter_apac" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="MKT-PROD-CAMP-RPT-DATAMART-101" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="MKT-PROD-CAMP" SUB_APPLICATION="MKT-PROD-CAMP-ADF" JOBNAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADF-Extract_Campaign_Data" DESCRIPTION="Extracts campaign data from source systems via ADF" RUN_AS="svc_acct_marketing_adf" TASKTYPE="Job" NODEID="adfprodagent01" APPL_TYPE="ADF">
+             <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_extract_campaigns"/>
+             <VARIABLE NAME="%%ADF_DATE_PARAM" VALUE="%%$ODATE"/>
+             <QUANTITATIVE NAME="ADF_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADF-Extract_Campaign_Data-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="marketing-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="MKT-PROD-CAMP" SUB_APPLICATION="MKT-PROD-CAMP-ADB" JOBNAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADB-Transform_Campaign_Metrics" DESCRIPTION="Transforms campaign metrics using Databricks" RUN_AS="svc_acct_marketing_adb" TASKTYPE="Job" NODEID="adbprodclus01" APPL_TYPE="Databricks">
+             <VARIABLE NAME="%%ADB_NOTEBOOK" VALUE="/notebooks/campaign_transform"/>
+             <VARIABLE NAME="%%INPUT_PATH" VALUE="/mnt/datalake/raw/campaign/%%$ODATE"/>
+             <VARIABLE NAME="%%OUTPUT_PATH" VALUE="/mnt/datalake/processed/campaign/%%$ODATE"/>
+             <INCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADF-Extract_Campaign_Data-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DATABRICKS_CLUSTER_NODE" QUANT="4" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADF-Extract_Campaign_Data-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADB-Transform_Campaign_Metrics-OK" ODATE="ODAT" SIGN="+"/>
+              <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="marketing-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="MKT-PROD-CAMP" SUB_APPLICATION="MKT-PROD-CAMP-DW" JOBNAME="MKT-PROD-CAMP-RPT-DATAMART-101-DW-Load_Campaign_Report_Data" DESCRIPTION="Loads transformed data into reporting DW" RUN_AS="svc_acct_marketing_dw" TASKTYPE="Job" NODEID="lnxdbprod03">
+             <INCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADB-Transform_Campaign_Metrics-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_LOAD_SLOT" QUANT="5" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-ADB-Transform_Campaign_Metrics-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-DW-Load_Campaign_Report_Data-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="marketing-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="MKT-PROD-CAMP" SUB_APPLICATION="MKT-PROD-CAMP-UTIL" JOBNAME="MKT-PROD-CAMP-RPT-DATAMART-101-CMD-Generate_Campaign_Report_PDF" DESCRIPTION="Generates final PDF report" RUN_AS="svc_acct_ops_util" TASKTYPE="Command" NODEID="lnxutilprod02" CMDLINE="/opt/scripts/generate_report.py --report=campaign --date=%%$ODATE">
+            <INCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-DW-Load_Campaign_Report_Data-OK" ODATE="ODAT" AND_OR="A"/>
+            <OUTCOND NAME="MKT-PROD-CAMP-RPT-DATAMART-101-DW-Load_Campaign_Report_Data-OK" ODATE="ODAT" SIGN="-"/>
+        </JOB>
+    </FOLDER>
+
+    <FOLDER DATACENTER="dev_datacenter_nam" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="HR-DEV-PAYROLL-UTIL-555" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="HR-DEV-PAYROLL" SUB_APPLICATION="HR-DEV-PAYROLL-UTIL" JOBNAME="HR-DEV-PAYROLL-UTIL-555-DW-Validate_Payroll_Input" DESCRIPTION="Validates payroll input files" RUN_AS="svc_acct_hr_dev" TASKTYPE="Job" NODEID="lnxappdev01"/>
+        <JOB APPLICATION="HR-DEV-PAYROLL" SUB_APPLICATION="HR-DEV-PAYROLL-UTIL" JOBNAME="HR-DEV-PAYROLL-UTIL-555-DW-Calculate_Payroll_Taxes" DESCRIPTION="Calculates payroll taxes" RUN_AS="svc_acct_hr_dev" TASKTYPE="Job" NODEID="lnxappdev01"/>
+        <JOB APPLICATION="HR-DEV-PAYROLL" SUB_APPLICATION="HR-DEV-PAYROLL-UTIL" JOBNAME="HR-DEV-PAYROLL-UTIL-555-DW-Generate_Paystubs" DESCRIPTION="Generates paystubs" RUN_AS="svc_acct_hr_dev" TASKTYPE="Job" NODEID="lnxappdev01"/>
+    </FOLDER>
+
+    <FOLDER DATACENTER="preprod_datacenter_emea" VERSION="920" PLATFORM="WINDOWS" FOLDER_NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="OPS-PREPROD-SAFETY" SUB_APPLICATION="OPS-PREPROD-SAFETY-ADF" JOBNAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADF-Ingest_Incident_Reports" DESCRIPTION="Ingests incident reports via ADF" RUN_AS="svc_acct_ops_adf_pp" TASKTYPE="Job" NODEID="winadfppagent01" APPL_TYPE="ADF">
+            <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_ingest_safety_incidents"/>
+            <QUANTITATIVE NAME="ADF_PP_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+            <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADF-OK" ODATE="ODAT" SIGN="+"/>
+            <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="U" DEST="ops-support-dev@example.com" SUBJECT="FAILED PREPROD Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="OPS-PREPROD-SAFETY" SUB_APPLICATION="OPS-PREPROD-SAFETY-ADB" JOBNAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADB-Analyze_Incident_Trends" DESCRIPTION="Analyzes incident trends using Databricks" RUN_AS="svc_acct_ops_adb_pp" TASKTYPE="Job" NODEID="adbppclus01" APPL_TYPE="Databricks">
+             <VARIABLE NAME="%%ADB_NOTEBOOK" VALUE="/notebooks/safety_analysis_pp"/>
+             <INCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADF-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DATABRICKS_PP_CLUSTER_NODE" QUANT="2" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADF-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADB-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="U" DEST="ops-support-dev@example.com" SUBJECT="FAILED PREPROD Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="OPS-PREPROD-SAFETY" SUB_APPLICATION="OPS-PREPROD-SAFETY-DW" JOBNAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-DW-Load_Safety_Dashboard" DESCRIPTION="Loads data into preprod safety dashboard" RUN_AS="svc_acct_ops_dw_pp" TASKTYPE="Job" NODEID="lnxdbpp01">
+             <INCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADB-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_PP_LOAD_SLOT" QUANT="2" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ADB-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-DW-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="U" DEST="ops-support-dev@example.com" SUBJECT="FAILED PREPROD Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="OPS-PREPROD-SAFETY" SUB_APPLICATION="OPS-PREPROD-SAFETY-UTIL" JOBNAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-CMD-Send_Safety_Alerts" DESCRIPTION="Sends safety alerts (preprod)" RUN_AS="svc_acct_ops_util_pp" TASKTYPE="Command" NODEID="lnxutilpp01" CMDLINE="/opt/scripts/send_alert.sh --env=PREPROD --type=safety">
+             <INCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-DW-OK" ODATE="ODAT" AND_OR="A"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-DW-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ALERT-OK" ODATE="ODAT" SIGN="+"/>
+        </JOB>
+        <JOB APPLICATION="OPS-PREPROD-SAFETY" SUB_APPLICATION="OPS-PREPROD-SAFETY-UTIL" JOBNAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-CMD-Cleanup_Temp_Files" DESCRIPTION="Cleans up temporary files" RUN_AS="svc_acct_ops_util_pp" TASKTYPE="Command" NODEID="lnxutilpp01" CMDLINE="/opt/scripts/cleanup.sh --path=/tmp/safety/preprod">
+            <INCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ALERT-OK" ODATE="ODAT" AND_OR="A"/>
+            <OUTCOND NAME="OPS-PREPROD-SAFETY-INCIDENT-DATAMART-TRACKING-201-ALERT-OK" ODATE="ODAT" SIGN="-"/>
+        </JOB>
+    </FOLDER>
+
+    <FOLDER DATACENTER="prod_datacenter_nam" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="ENG-PROD-TRACK-MAINT-1109" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="ENG-PROD-TRACK" SUB_APPLICATION="ENG-PROD-TRACK-ADF" JOBNAME="ENG-PROD-TRACK-MAINT-1109-ADF-Load_Maintenance_Schedules" DESCRIPTION="Loads track maintenance schedules" RUN_AS="svc_acct_eng_adf" TASKTYPE="Job" NODEID="adfprodagent02" APPL_TYPE="ADF">
+             <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_load_track_schedules"/>
+             <QUANTITATIVE NAME="ADF_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="ENG-PROD-TRACK-MAINT-1109-ADF-OK" ODATE="ODAT" SIGN="+"/>
+              <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="eng-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="ENG-PROD-TRACK" SUB_APPLICATION="ENG-PROD-TRACK-DW" JOBNAME="ENG-PROD-TRACK-MAINT-1109-DW-Update_Track_Status" DESCRIPTION="Updates track status in DW" RUN_AS="svc_acct_eng_dw" TASKTYPE="Job" NODEID="lnxdbprod01">
+             <INCOND NAME="ENG-PROD-TRACK-MAINT-1109-ADF-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_LOAD_SLOT" QUANT="3" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="ENG-PROD-TRACK-MAINT-1109-ADF-OK" ODATE="ODAT" SIGN="-"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="eng-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+    </FOLDER>
+
+    <FOLDER DATACENTER="prod_datacenter_nam" VERSION="920" PLATFORM="MAINFRAME" FOLDER_NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="REV-PROD-WAYBILL" SUB_APPLICATION="REV-PROD-WAYBILL-INGEST" JOBNAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADF-Ingest_EDI_Waybills" DESCRIPTION="Ingests EDI waybills via ADF" RUN_AS="svc_acct_rev_adf" TASKTYPE="Job" NODEID="adfprodagent03" APPL_TYPE="ADF">
+            <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_ingest_edi_waybills"/>
+            <QUANTITATIVE NAME="ADF_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+            <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADF-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="C" DEST="revenue-support-dl@example.com" SUBJECT="CRITICAL FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="REV-PROD-WAYBILL" SUB_APPLICATION="REV-PROD-WAYBILL-VALIDATE" JOBNAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADB-Validate_Waybill_Data" DESCRIPTION="Validates waybill data using Databricks" RUN_AS="svc_acct_rev_adb" TASKTYPE="Job" NODEID="adbprodclus02" APPL_TYPE="Databricks">
+             <VARIABLE NAME="%%ADB_NOTEBOOK" VALUE="/notebooks/waybill_validation"/>
+             <INCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADF-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DATABRICKS_CLUSTER_NODE" QUANT="5" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADF-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADB-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="C" DEST="revenue-support-dl@example.com" SUBJECT="CRITICAL FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="REV-PROD-WAYBILL" SUB_APPLICATION="REV-PROD-WAYBILL-LOAD" JOBNAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-Load_Validated_Waybills" DESCRIPTION="Loads validated waybills into DW" RUN_AS="svc_acct_rev_dw" TASKTYPE="Job" NODEID="lnxdbprod02">
+             <INCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADB-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_LOAD_SLOT" QUANT="10" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-ADB-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-LOAD-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="C" DEST="revenue-support-dl@example.com" SUBJECT="CRITICAL FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="REV-PROD-WAYBILL" SUB_APPLICATION="REV-PROD-WAYBILL-MATCH" JOBNAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-Match_Waybills_To_Shipments" DESCRIPTION="Matches waybills to shipments" RUN_AS="svc_acct_rev_dw" TASKTYPE="Job" NODEID="lnxdbprod02">
+             <INCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-LOAD-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_MATCH_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-LOAD-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-MATCH-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="C" DEST="revenue-support-dl@example.com" SUBJECT="CRITICAL FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="REV-PROD-WAYBILL" SUB_APPLICATION="REV-PROD-WAYBILL-NOTIFY" JOBNAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-CMD-Notify_Billing_System" DESCRIPTION="Notifies billing system of processed waybills" RUN_AS="svc_acct_ops_util" TASKTYPE="Command" NODEID="lnxutilprod01" CMDLINE="/opt/scripts/notify_billing.sh --type=waybill --date=%%$ODATE">
+            <INCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-MATCH-OK" ODATE="ODAT" AND_OR="A"/>
+            <OUTCOND NAME="REV-PROD-WAYBILL-PROC-DATAMART-1060-DW-MATCH-OK" ODATE="ODAT" SIGN="-"/>
+        </JOB>
+    </FOLDER>
+
+    <FOLDER DATACENTER="prod_datacenter_nam" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="REF-PROD-CUSTOMER-MASTER-1067" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="REF-PROD-CUSTOMER" SUB_APPLICATION="REF-PROD-CUSTOMER-DW" JOBNAME="REF-PROD-CUSTOMER-MASTER-1067-DW-Load_New_Customers" DESCRIPTION="Loads new customer records" RUN_AS="svc_acct_refdata_dw" TASKTYPE="Job" NODEID="lnxdbprod03">
+            <QUANTITATIVE NAME="DW_REF_LOAD_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="refdata-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="REF-PROD-CUSTOMER" SUB_APPLICATION="REF-PROD-CUSTOMER-DW" JOBNAME="REF-PROD-CUSTOMER-MASTER-1067-DW-Update_Customer_Addresses" DESCRIPTION="Updates customer addresses" RUN_AS="svc_acct_refdata_dw" TASKTYPE="Job" NODEID="lnxdbprod03">
+             <QUANTITATIVE NAME="DW_REF_LOAD_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="refdata-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+    </FOLDER>
+
+     <FOLDER DATACENTER="prod_datacenter_apac" VERSION="920" PLATFORM="UNIX" FOLDER_NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01" FOLDER_ORDER_METHOD="SYSTEM" TYPE="1">
+        <JOB APPLICATION="SCM-PROD-INVENTORY" SUB_APPLICATION="SCM-PROD-INVENTORY-INGEST" JOBNAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-Load_Warehouse_Receipts" DESCRIPTION="Loads warehouse receipt data" RUN_AS="svc_acct_scm_adf" TASKTYPE="Job" NODEID="adfprodagent01" APPL_TYPE="ADF">
+             <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_ingest_receipts"/>
+             <QUANTITATIVE NAME="ADF_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-RECEIPTS-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="scm-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+         <JOB APPLICATION="SCM-PROD-INVENTORY" SUB_APPLICATION="SCM-PROD-INVENTORY-INGEST" JOBNAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-Load_Shipment_Confirmations" DESCRIPTION="Loads shipment confirmation data" RUN_AS="svc_acct_scm_adf" TASKTYPE="Job" NODEID="adfprodagent01" APPL_TYPE="ADF">
+             <VARIABLE NAME="%%ADF_PIPELINE" VALUE="pl_ingest_shipments"/>
+             <QUANTITATIVE NAME="ADF_PIPELINE_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-SHIPMENTS-OK" ODATE="ODAT" SIGN="+"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="scm-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+        <JOB APPLICATION="SCM-PROD-INVENTORY" SUB_APPLICATION="SCM-PROD-INVENTORY-PROCESS" JOBNAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-DW-Update_Inventory_Levels" DESCRIPTION="Updates inventory levels based on receipts and shipments" RUN_AS="svc_acct_scm_dw" TASKTYPE="Job" NODEID="lnxdbprod04">
+             <INCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-RECEIPTS-OK" ODATE="ODAT" AND_OR="A"/>
+             <INCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-SHIPMENTS-OK" ODATE="ODAT" AND_OR="A"/>
+             <QUANTITATIVE NAME="DW_INVENTORY_PROC_SLOT" QUANT="1" ONOK="R" ONFAIL="R"/>
+             <OUTCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-RECEIPTS-OK" ODATE="ODAT" SIGN="-"/>
+             <OUTCOND NAME="SCM-PROD-INVENTORY-MGMT-DATAMART-INV01-ADF-SHIPMENTS-OK" ODATE="ODAT" SIGN="-"/>
+             <ON STMT="*" CODE="NOTOK">
+                 <DOMAIL URGENCY="R" DEST="scm-support-dl@example.com" SUBJECT="FAILED Job: %%JOBNAME" MESSAGE="Job %%JOBNAME failed on %%NODEID."/>
+            </ON>
+        </JOB>
+    </FOLDER>
+
+</DEFTABLE>
