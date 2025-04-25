@@ -1,6 +1,6 @@
 # XML to UAT Evidence Generator
 
-[![CI Pipeline](https://github.com/benkaan001/mysql_query_lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/benkaan001/xml-to-uat-evidence-generator/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/benkaan001/xml-to-uat-evidence-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/benkaan001/xml-to-uat-evidence-generator/actions/workflows/ci.yml)
 
 This script streamlines the User Acceptance Testing (UAT) evidence collection process for deployments managed via Control-M (or similar XML-based configuration).
 
